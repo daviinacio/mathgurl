@@ -123,7 +123,7 @@
       const grid = document.getElementsByTagName('grid')[0];
 
       grid.setAttribute('editable', query.get('editable') || true);
-      //grid.setAttribute('value', query.get('value') || '[]');
+      grid.setAttribute('value', query.get('value'));
       grid.setAttribute('size', query.get('size') || 6);
       grid.setAttribute('min', query.get('min') || 1);
       grid.setAttribute('max', query.get('max') || 8);
@@ -259,6 +259,7 @@
               item.addEventListener('keyup', (e) => {
                 state[y][x] = parseInt(e.target.value) || 0;
                 calcConflicts();
+                console.log(JSON.stringify(state));
               });
             }
           }
