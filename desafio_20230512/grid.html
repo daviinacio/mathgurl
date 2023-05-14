@@ -1,0 +1,271 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8">
+  <meta http-equiv="X-UA-Compatible" content="IE=edge">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+  <style>
+    html,
+    body,
+    #root {
+      overflow: hidden !important;
+    }
+
+    body {
+      margin: 0;
+      padding: 0;
+    }
+
+    #root {
+      padding: 10px;
+      box-sizing: border-box;
+      overflow: auto;
+      max-width: 100%;
+      height: calc(100vh - 16px);
+    }
+
+    #content {
+      width: 100%;
+      padding-bottom: calc(100% - 9px);
+      position: relative;
+    }
+
+    .grid {
+      position: absolute;
+      top: 0;
+      right: 0;
+      bottom: 0;
+      left: 0;
+      display: flex;
+      flex-wrap: wrap;
+      flex-direction: column;
+      background-color: #777;
+      padding: 2px;
+      gap: 2px;
+    }
+
+    .row {
+      flex: 1;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 2px;
+    }
+
+    .item {
+      flex: 1;
+      width: 1%;
+      border: none;
+      font-size: 2.8em;
+      font-family: sans-serif;
+      line-height: 100%;
+      text-align: center;
+      font-weight: bold;
+      caret-color: transparent;
+      cursor: pointer;
+    }
+
+    .item,
+    .item:disabled {
+      background-color: white;
+      color: black;
+    }
+
+    .item.conflict {
+      color: red;
+    }
+
+    .item.highlight {
+      background-color: #eee;
+    }
+
+    .item:hover {
+      outline: none;
+      background-color: #efefef;
+    }
+
+    span.item {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    input.item:focus {
+      outline: none;
+      background-color: #ccc;
+    }
+
+    input.item::-webkit-outer-spin-button,
+    input.item::-webkit-inner-spin-button {
+      -webkit-appearance: none;
+      margin: 0;
+    }
+
+    /* Firefox */
+    input.item[type=number] {
+      -moz-appearance: textfield;
+    }
+  </style>
+</head>
+
+<body>
+  <div id="root">
+    <div id="content">
+      <grid />
+    </div>
+  </div>
+
+  <script>
+    document.addEventListener('DOMContentLoaded', function () {
+      const query = new URLSearchParams(location.search);
+
+      const grid = document.getElementsByTagName('grid')[0];
+
+      grid.setAttribute('editable', query.get('editable') || true);
+      //grid.setAttribute('value', query.get('value') || '[]');
+      grid.setAttribute('size', query.get('size') || 6);
+      grid.setAttribute('min', query.get('min') || 1);
+      grid.setAttribute('max', query.get('max') || 8);
+
+      // grid.setAttribute('value', JSON.stringify([
+      //   [1, 0, 1, 0, 1, 0],
+      //   [0, 1, 0, 1, 0, 1],
+      //   [1, 0, 1, 0, 1, 0],
+      //   [0, 1, 0, 1, 0, 1],
+      //   [1, 0, 1, 0, 1, 0],
+      //   [0, 1, 0, 1, 0, 1],
+      // ]));
+    });
+
+    document.addEventListener('DOMContentLoaded', function () {
+      document.querySelectorAll('grid').forEach((grid) => {
+        // Grid variables
+        const state = Array.from(JSON.parse(grid.getAttribute('value') || '[]') || []) || [];
+        const size = parseInt(grid.getAttribute('size')) || state.length;
+        const min = parseInt(grid.getAttribute('min'));
+        const max = parseInt(grid.getAttribute('max'));
+        const editable = grid.getAttribute('editable') === 'true';
+
+        // Setup grid and create elements
+        grid.classList.add('grid');
+
+        for (let y = 0; y < size; y++) {
+          state[y] = state[y] || [];
+          const row = document.createElement('div');
+          row.classList.add('row');
+
+          for (let x = 0; x < size; x++) {
+            const item = document.createElement(editable ? 'input' : 'span');
+            item.classList.add('item');
+            item.addEventListener('mousedown', (e) => highlightByValue(e.target.value));
+            item.setAttribute('x', x);
+            item.setAttribute('y', y);
+            item.value = state[y][x] || ''
+
+            if (editable) {
+              item.type = 'number';
+              item.min = min;
+              item.max = max;
+            }
+            else {
+              item.innerText = state[y][x] || '';
+            }
+
+            // item.disabled = grid.getAttribute('editable') !== 'true'
+
+
+            row.appendChild(item);
+
+            state[y][x] = state[y][x] || 0;
+          }
+
+          grid.appendChild(row);
+        }
+
+        calcConflicts();
+
+
+        // Utils
+        function getPositionsByValue(value) {
+          const result = [];
+
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+              if (state[y][x] === value) {
+                result.push({ x, y })
+              }
+            }
+          }
+
+          return result;
+        }
+
+        // Rule validation
+        function calcConflicts() {
+          document.querySelectorAll('.item').forEach((item) => {
+            item.classList.remove('conflict');
+          });
+
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+              const value = state[y][x];
+              if (value === 0) continue;
+
+              const conflicts = getPositionsByValue(value).reduce((ac, item) => {
+                const distance = Math.abs(y - item.y) + Math.abs(x - item.x);
+                if (distance <= value)
+                  ac.push(item);
+                return ac;
+              }, []);
+
+              if (conflicts.length > 1) {
+                conflicts.forEach(conflict =>
+                  document.querySelector(`.item[x="${x}"][y="${y}"]`)
+                    .classList.add('conflict')
+                )
+              }
+            }
+          }
+        }
+
+        function highlightByValue(value) {
+          document.querySelectorAll('.item').forEach((item) => {
+            item.classList.remove('highlight');
+            if (value !== '' && item.value == value) {
+              item.classList.add('highlight');
+            }
+          });
+        }
+
+        if (grid.getAttribute('editable') === 'true') {
+          for (let y = 0; y < size; y++) {
+            for (let x = 0; x < size; x++) {
+              const item = document.querySelector(`.item[x="${x}"][y="${y}"]`);
+              item.addEventListener('keypress', (e) => {
+                const value = e.target.value;
+                const key = e.key;
+
+                e.preventDefault();
+
+                const newValueConcat = parseInt(`${value}${key}`);
+                const newValue = (newValueConcat > max ? (
+                  parseInt(key) > max ? max : parseInt(key)
+                ) : newValueConcat);
+
+                e.target.value = newValue || (min === 0 ? '0' : '');
+              });
+
+              item.addEventListener('keyup', (e) => {
+                state[y][x] = parseInt(e.target.value) || 0;
+                calcConflicts();
+              });
+            }
+          }
+        }
+      });
+    });
+  </script>
+</body>
+
+</html>
